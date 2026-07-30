@@ -1,0 +1,57 @@
+{
+  "_comment": "Single-number mode (MacroDroid + real Teletalk SIM). Set your real Teletalk number below just for display on the dashboard - severity comes from call-repeat count, not from which number was dialed.",
+
+  "teletalk_number": "+8801521768986",
+  "repeat_window_seconds": 90,
+
+  "_severity_by_number_comment": "Only used if you later add Twilio numbers back in alongside the single line. Safe to ignore for the Teletalk-only setup.",
+  "severity_by_number": {
+    "+15550000001": 1,
+    "+15550000002": 2,
+    "+15550000003": 3
+  },
+
+  "severity_labels": {
+    "1": { "en": "Water rising", "bn": "পানি বাড়ছে", "detail": "Knee-deep, no help needed yet" },
+    "2": { "en": "Evacuating", "bn": "সরে যাচ্ছি", "detail": "Waist-deep, leaving home" },
+    "3": { "en": "Need rescue", "bn": "উদ্ধার দরকার", "detail": "Trapped, cannot leave" }
+  },
+
+  "_caller_registry_comment": "Numbers that registered once (by SMS or with a local volunteer) and are tied to a place. Put your own number here so your pin lands where you want it during the demo.",
+  "caller_registry": {
+    "+8801700000001": "sunamganj_sadar",
+    "+8801700000002": "companiganj",
+    "+8801700000003": "chilmari",
+    "+8801700000004": "fulchhari",
+    "+8801700000005": "islampur",
+    "+8801700000006": "sonagazi",
+    "+8801700000007": "hatiya",
+    "+8801700000008": "char_fasson",
+    "+8801700000009": "kalapara",
+    "+8801700000010": "shyamnagar"
+  },
+
+  "_places_comment": "Approximate upazila centroids for flood-prone areas. Good enough for a demo map; swap in exact centroids from geoBoundaries or HDX before you claim precision.",
+  "places": {
+    "sunamganj_sadar": { "name": "Sunamganj Sadar", "district": "Sunamganj", "lat": 25.065, "lng": 91.395 },
+    "derai":           { "name": "Derai",            "district": "Sunamganj", "lat": 24.795, "lng": 91.325 },
+    "companiganj":     { "name": "Companiganj",      "district": "Sylhet",    "lat": 25.075, "lng": 91.755 },
+    "gowainghat":      { "name": "Gowainghat",       "district": "Sylhet",    "lat": 25.115, "lng": 91.905 },
+    "chilmari":        { "name": "Chilmari",         "district": "Kurigram",  "lat": 25.555, "lng": 89.680 },
+    "roumari":         { "name": "Roumari",          "district": "Kurigram",  "lat": 25.415, "lng": 89.845 },
+    "fulchhari":       { "name": "Fulchhari",        "district": "Gaibandha", "lat": 25.235, "lng": 89.665 },
+    "saghata":         { "name": "Saghata",          "district": "Gaibandha", "lat": 25.075, "lng": 89.585 },
+    "islampur":        { "name": "Islampur",         "district": "Jamalpur",  "lat": 25.135, "lng": 89.795 },
+    "dewanganj":       { "name": "Dewanganj",        "district": "Jamalpur",  "lat": 25.245, "lng": 89.735 },
+    "kazipur":         { "name": "Kazipur",          "district": "Sirajganj", "lat": 24.635, "lng": 89.665 },
+    "sonagazi":        { "name": "Sonagazi",         "district": "Feni",      "lat": 22.855, "lng": 91.395 },
+    "hatiya":          { "name": "Hatiya",           "district": "Noakhali",  "lat": 22.345, "lng": 91.115 },
+    "char_fasson":     { "name": "Char Fasson",      "district": "Bhola",     "lat": 22.185, "lng": 90.755 },
+    "kalapara":        { "name": "Kalapara",         "district": "Patuakhali","lat": 21.985, "lng": 90.245 },
+    "amtali":          { "name": "Amtali",           "district": "Barguna",   "lat": 22.135, "lng": 90.235 },
+    "shyamnagar":      { "name": "Shyamnagar",       "district": "Satkhira",  "lat": 22.325, "lng": 89.105 },
+    "koyra":           { "name": "Koyra",            "district": "Khulna",    "lat": 22.345, "lng": 89.295 },
+    "netrokona_sadar": { "name": "Netrokona Sadar",  "district": "Netrokona", "lat": 24.885, "lng": 90.725 },
+    "teknaf":          { "name": "Teknaf",           "district": "Cox's Bazar","lat": 20.865, "lng": 92.305 }
+  }
+}

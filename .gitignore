@@ -1,0 +1,14 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+backend/calls.db
+
+# node
+node_modules/
+dist/
+.vite/
+
+# env
+.env
+.env.local
