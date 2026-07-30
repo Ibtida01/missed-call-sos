@@ -4,6 +4,12 @@ import L from "leaflet";
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 const WS_URL = API_BASE.replace(/^http/, "ws") + "/ws";
 
+// ngrok free tunnels show an HTML warning page to browser requests unless
+// this header is present - without it, fetch gets a 200 OK with no CORS
+// headers, which the browser reports as a CORS error even though the
+// request "succeeded". Harmless to send this even against Vercel/Render.
+const API_HEADERS = { "ngrok-skip-browser-warning": "true" };
+
 const LINES = [
   { level: 3, key: "sev-3", en: "Need rescue", bn: "উদ্ধার দরকার", calls: "call 3 times" },
   { level: 2, key: "sev-2", en: "Evacuating", bn: "সরে যাচ্ছি", calls: "call 2 times" },
@@ -77,7 +83,7 @@ export default function App() {
 
   /* ------------------------------------------------------------ initial */
   useEffect(() => {
-    fetch(`${API_BASE}/api/calls`)
+    fetch(`${API_BASE}/api/calls`, { headers: API_HEADERS })
       .then((r) => r.json())
       .then((d) => {
         setCalls(d.calls);
@@ -134,11 +140,12 @@ export default function App() {
   const simulate = (severity) =>
     fetch(`${API_BASE}/api/simulate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...API_HEADERS },
       body: JSON.stringify({ severity }),
     }).catch(() => {});
 
-  const reset = () => fetch(`${API_BASE}/api/calls`, { method: "DELETE" }).catch(() => {});
+  const reset = () =>
+    fetch(`${API_BASE}/api/calls`, { method: "DELETE", headers: API_HEADERS }).catch(() => {});
 
   const rescues = Number(stats.by_severity?.["3"] || 0);
   const lastPerLine = useMemo(() => {
