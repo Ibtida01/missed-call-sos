@@ -19,6 +19,8 @@ import random
 import sqlite3
 import threading
 import time
+import urllib.parse
+import urllib.request
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -87,18 +89,86 @@ def bucket_severity(caller: str) -> int:
     return min(count, 3)
 
 
+def reverse_geocode(lat: float, lng: float) -> str:
+    """
+    Turn coordinates into a human-readable place name using Nominatim
+    (OpenStreetMap's free reverse-geocoding service). No API key needed.
+
+    Nominatim's usage policy requires a descriptive User-Agent and asks for
+    at most ~1 request/second, which is fine here since this only runs once
+    per person at registration time, not on every call.
+    """
+    try:
+        params = urllib.parse.urlencode({
+            "lat": lat, "lon": lng, "format": "jsonv2", "zoom": 14
+        })
+        req = urllib.request.Request(
+            f"https://nominatim.openstreetmap.org/reverse?{params}",
+            headers={"User-Agent": "MissedCallSOS-Hackathon/1.0 (contact: demo)"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        addr = data.get("address", {})
+        for key in ("suburb", "village", "town", "city_district", "county", "city"):
+            if addr.get(key):
+                return addr[key]
+        return data.get("display_name", "Registered location")[:60]
+    except Exception:
+        return "Registered location"
+
+
+def get_registration(caller: str) -> dict | None:
+    caller = normalise(caller)
+    with _db_lock:
+        row = _db.execute(
+            "SELECT * FROM registrations WHERE caller = ?", (caller,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def upsert_registration(caller: str, lat: float, lng: float, label: str | None) -> dict:
+    caller = normalise(caller)
+    if not label:
+        label = reverse_geocode(lat, lng)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _db_lock:
+        _db.execute(
+            """INSERT INTO registrations (caller, lat, lng, label, updated_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(caller) DO UPDATE SET
+                 lat=excluded.lat, lng=excluded.lng,
+                 label=excluded.label, updated_at=excluded.updated_at""",
+            (caller, lat, lng, label, now),
+        )
+        _db.commit()
+    return {"caller": caller, "lat": lat, "lng": lng, "label": label, "updated_at": now}
+
+
 def locate(caller: str) -> dict:
     """
     Resolve a caller to a place.
 
-    Registered numbers (community volunteers who signed up once, by SMS or in
-    person) resolve to their real union/upazila. Anyone else - including a judge
-    dialling in for the first time - is assigned a place deterministically from a
-    hash of their number, and flagged as unregistered so the map never pretends
-    that pin is verified.
+    Priority order:
+      1. GPS self-registration (exact fix, from the free browser-based
+         registration page - see /api/register).
+      2. Upazila-level caller_registry in config.json (a volunteer entered
+         it manually, or it was entered before GPS registration existed).
+      3. Deterministic hash fallback for anyone unregistered, flagged as
+         such so the map never pretends that pin is verified.
     """
     caller = normalise(caller)
     place_ids = list(PLACES.keys())
+
+    gps = get_registration(caller)
+    if gps:
+        return {
+            "place_id": "gps:" + caller,
+            "upazila": gps["label"],
+            "district": "GPS-registered",
+            "lat": gps["lat"],
+            "lng": gps["lng"],
+            "registered": True,
+        }
 
     if caller in CALLER_REGISTRY:
         place_id = CALLER_REGISTRY[caller]
@@ -153,6 +223,25 @@ _db.execute(
         registered    INTEGER NOT NULL,
         source        TEXT NOT NULL,
         created_at    TEXT NOT NULL
+    )
+    """
+)
+
+# Free, optional GPS self-registration. A volunteer or at-risk household
+# registers their number ONCE, ahead of any crisis, using their phone's browser
+# and its built-in GPS (Geolocation API - free, no app, no key). During an
+# actual emergency they still just call - no data or GPS needed at that point.
+# This table takes priority over the upazila-level caller_registry in
+# config.json, since it stores an exact GPS fix instead of a village-level
+# guess.
+_db.execute(
+    """
+    CREATE TABLE IF NOT EXISTS registrations (
+        caller      TEXT PRIMARY KEY,
+        lat         REAL NOT NULL,
+        lng         REAL NOT NULL,
+        label       TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
     )
     """
 )
@@ -402,6 +491,45 @@ async def clear_calls():
         _repeat_calls.clear()
     await hub.broadcast({"type": "reset", "stats": stats()})
     return {"ok": True}
+
+
+@app.post("/api/register")
+async def register_location(payload: dict):
+    """
+    Free GPS self-registration - done ONCE, ahead of any emergency, using a
+    phone's browser and its built-in Geolocation API. No app, no key, no cost.
+
+    This is intentionally separate from the missed-call flow: during an
+    actual crisis, the caller still just dials and hangs up, same as always,
+    with zero data or GPS needed at that moment. This endpoint only improves
+    the map's accuracy for people who registered in advance while they had
+    a working smartphone and a data connection.
+    """
+    caller = payload.get("caller", "")
+    lat = payload.get("lat")
+    lng = payload.get("lng")
+    label = payload.get("label")
+
+    if not caller or lat is None or lng is None:
+        raise HTTPException(status_code=400, detail="caller, lat, and lng are required")
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="lat/lng must be numbers")
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise HTTPException(status_code=400, detail="lat/lng out of range")
+
+    row = upsert_registration(caller, lat, lng, label)
+    return {"ok": True, "registration": row}
+
+
+@app.get("/api/register")
+async def check_registration(caller: str):
+    """Look up whether a number is already GPS-registered (used by the
+    registration page to show 'already registered' state)."""
+    row = get_registration(caller)
+    return {"registered": row is not None, "registration": row}
 
 
 def public_config() -> dict:

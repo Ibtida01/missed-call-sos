@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register your location — Missed Call SOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --ink: #0a121c;
+      --panel: #101c29;
+      --panel-2: #0d1723;
+      --edge: #1e3145;
+      --paper: #e9e3d6;
+      --paper-dim: #8b98a7;
+      --live: #6fd7a8;
+      --warn: #e2453c;
+      --sans: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --bn: "Noto Sans Bengali", var(--sans);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--sans);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--panel);
+      border: 1px solid var(--edge);
+      border-radius: 4px;
+      padding: 28px 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .brand-mark {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 12px var(--warn);
+    }
+    .brand-name {
+      font-family: var(--mono);
+      font-weight: 600;
+      font-size: 16px;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 18px 0 6px;
+      font-weight: 600;
+    }
+    p.lead {
+      color: var(--paper-dim);
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 22px;
+    }
+    label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--paper-dim);
+      margin-bottom: 6px;
+    }
+    input[type="tel"], input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      font-family: var(--mono);
+      color: var(--paper);
+      background: var(--panel-2);
+      border: 1px solid var(--edge);
+      border-radius: 2px;
+      margin-bottom: 18px;
+    }
+    input:focus { outline: 2px solid var(--live); outline-offset: 1px; }
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--live);
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: opacity 140ms;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:hover:not(:disabled) { opacity: 0.9; }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 2px;
+      font-size: 13px;
+      line-height: 1.5;
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.ok { background: rgba(111,215,168,0.1); border: 1px solid var(--live); color: var(--live); }
+    .status.err { background: rgba(226,69,60,0.1); border: 1px solid var(--warn); color: var(--warn); }
+    .status.pending { background: var(--panel-2); border: 1px solid var(--edge); color: var(--paper-dim); }
+    .foot {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--paper-dim);
+      line-height: 1.6;
+    }
+    .foot b { color: var(--paper); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">Missed Call SOS</span>
+    </div>
+    <h1>Register your location</h1>
+    <p class="lead">
+      Do this once, now, while you have data and a working phone. During an
+      actual emergency you won't need this page — you'll just call the
+      number and hang up, same as always.
+    </p>
+
+    <label for="phone">Your phone number</label>
+    <input type="tel" id="phone" placeholder="+8801XXXXXXXXX" autocomplete="tel" />
+
+    <button id="btn">Use my current location</button>
+
+    <div class="status" id="status"></div>
+
+    <div class="foot">
+      <b>Why we ask:</b> if a real emergency call ever comes from this number,
+      the coordinator's map will show your actual location instead of a
+      rough estimate. This page uses your phone's built-in GPS
+      (free, no app, nothing installed) — it only runs once, right now,
+      not during the emergency call itself.
+    </div>
+  </div>
+
+  <script>
+    // Set your backend URL here before deploying, OR override per-link with
+    // ?api=https://your-url.com (handy for switching between ngrok/Vercel
+    // without rebuilding).
+    const DEFAULT_API_BASE = "http://localhost:8000";
+    const API_BASE = new URLSearchParams(window.location.search).get("api") || DEFAULT_API_BASE;
+    const btn = document.getElementById("btn");
+    const phoneInput = document.getElementById("phone");
+    const statusEl = document.getElementById("status");
+
+    function setStatus(kind, text) {
+      statusEl.className = "status show " + kind;
+      statusEl.textContent = text;
+    }
+
+    function normalisePhone(v) {
+      return (v || "").replace(/[^\d+]/g, "");
+    }
+
+    btn.addEventListener("click", () => {
+      const caller = normalisePhone(phoneInput.value);
+      if (!caller || caller.length < 8) {
+        setStatus("err", "Enter a valid phone number first (e.g. +8801712345678).");
+        return;
+      }
+      if (!("geolocation" in navigator)) {
+        setStatus("err", "This browser doesn't support location. Try Chrome or a recent browser.");
+        return;
+      }
+
+      btn.disabled = true;
+      setStatus("pending", "Getting your location…");
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const res = await fetch(`${API_BASE}/api/register`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true",
+              },
+              body: JSON.stringify({ caller, lat: latitude, lng: longitude }),
+            });
+            if (!res.ok) throw new Error("Server rejected the request");
+            const data = await res.json();
+            setStatus(
+              "ok",
+              `Registered as ${data.registration.label}. If this number ever calls the emergency line, the map will show this location.`
+            );
+          } catch (err) {
+            setStatus("err", "Couldn't reach the server. Check your connection and try again.");
+          } finally {
+            btn.disabled = false;
+          }
+        },
+        (err) => {
+          btn.disabled = false;
+          if (err.code === err.PERMISSION_DENIED) {
+            setStatus("err", "Location permission denied. Allow location access and try again.");
+          } else {
+            setStatus("err", "Couldn't get your location. Try again outdoors or near a window.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  </script>
+</body>
+</html>

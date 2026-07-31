@@ -289,6 +289,10 @@ export default function App() {
       <footer className="foot">
         Calls are rejected, never answered — the caller is not charged. Numbers are masked on
         screen; unregistered callers are placed approximately and labelled as such.
+        {" "}
+        <a href={`/register.html?api=${encodeURIComponent(API_BASE)}`} className="foot-link">
+          Register a number's GPS location →
+        </a>
       </footer>
     </div>
   );
