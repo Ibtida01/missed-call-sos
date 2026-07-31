@@ -133,17 +133,25 @@
       <span class="brand-mark"></span>
       <span class="brand-name">Missed Call SOS</span>
     </div>
-    <h1>Register your location</h1>
+    <h1>Register a location</h1>
     <p class="lead">
-      Do this once, now, while you have data and a working phone. During an
-      actual emergency you won't need this page — you'll just call the
-      number and hang up, same as always.
+      Do this once, now, while there's data and a working phone. During an
+      actual emergency this page isn't needed — just call the number and
+      hang up, same as always.
+      <br /><br />
+      <b>Registering for someone else?</b> Stand at their home, enter
+      <i>their</i> phone number below, and use your own phone's GPS. One
+      volunteer with one smartphone can register an entire neighbourhood this
+      way — the number and the device don't need to match.
     </p>
 
-    <label for="phone">Your phone number</label>
+    <label for="phone">Phone number being registered</label>
     <input type="tel" id="phone" placeholder="+8801XXXXXXXXX" autocomplete="tel" />
 
-    <button id="btn">Use my current location</button>
+    <label for="label">Household or person's name (optional)</label>
+    <input type="text" id="label" placeholder="e.g. Karim Mia's house" autocomplete="off" />
+
+    <button id="btn">Use current location</button>
 
     <div class="status" id="status"></div>
 
@@ -175,8 +183,11 @@
       return (v || "").replace(/[^\d+]/g, "");
     }
 
+    const labelInput = document.getElementById("label");
+
     btn.addEventListener("click", () => {
       const caller = normalisePhone(phoneInput.value);
+      const label = labelInput.value.trim();
       if (!caller || caller.length < 8) {
         setStatus("err", "Enter a valid phone number first (e.g. +8801712345678).");
         return;
@@ -187,7 +198,7 @@
       }
 
       btn.disabled = true;
-      setStatus("pending", "Getting your location…");
+      setStatus("pending", "Getting location…");
 
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -199,14 +210,24 @@
                 "Content-Type": "application/json",
                 "ngrok-skip-browser-warning": "true",
               },
-              body: JSON.stringify({ caller, lat: latitude, lng: longitude }),
+              body: JSON.stringify({
+                caller,
+                lat: latitude,
+                lng: longitude,
+                label: label || undefined,
+              }),
             });
             if (!res.ok) throw new Error("Server rejected the request");
             const data = await res.json();
             setStatus(
               "ok",
-              `Registered as ${data.registration.label}. If this number ever calls the emergency line, the map will show this location.`
+              `Registered as ${data.registration.label}. If this number ever calls the emergency line, the map will show this location. Ready for the next house — the form has been cleared.`
             );
+            // Clear for the next house, but leave the API/link intact so a
+            // volunteer can keep registering neighbours one after another.
+            phoneInput.value = "";
+            labelInput.value = "";
+            phoneInput.focus();
           } catch (err) {
             setStatus("err", "Couldn't reach the server. Check your connection and try again.");
           } finally {
